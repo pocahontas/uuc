@@ -1,122 +1,128 @@
 ﻿Option Explicit On
 Option Strict On
 
-Imports WinEventHook.WinHookEvent
-Imports WinEventHook.WinHookEvent.WinEvents
-
-' http://reflector.webtropy.com/default.aspx/Dotnetfx_Vista_SP2/Dotnetfx_Vista_SP2/8@0@50727@4016/DEVDIV/depot/DevDiv/releases/Orcas/QFE/wpf/src/UIAutomation/UIAutomationClient/MS/Internal/Automation/HwndProxyElementProvider@cs/1/HwndProxyElementProvider@cs
-
-Public Class Form1
-
-	Shared WindowEvent As WinHookEvent = Nothing
-	Shared KBEvent As WinHookExKb = Nothing
-	Shared MouseEvent As WinHookExMouse = Nothing
-
-	Private Sub Form1_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
-		Btn_hook.Enabled = True
-		Btn_unhook.Enabled = False
-		Btn_Hook_Mouse.Enabled = True
-		Btn_Unhook_Mouse.Enabled = False
-		Btn_Hook_KB.Enabled = True
-		Btn_Unhook_KB.Enabled = False
-		TextBox1.Enabled = False
-	End Sub
-
-	Private Sub Form1_UnLoad(sender As System.Object, e As System.EventArgs) Handles MyBase.FormClosing
-		If WindowEvent IsNot Nothing Then WindowEvent.Close()
-		If KBEvent IsNot Nothing Then KBEvent.Close()
-		If MouseEvent IsNot Nothing Then MouseEvent.Close()
-	End Sub
+Imports System.Data
+Imports System.Data.OleDb
+Imports System.IO
 
 
-	Private Sub Btn_Hook_Click(sender As System.Object, e As System.EventArgs) Handles Btn_hook.Click
-		Btn_hook.Enabled = False
-		WindowEvent = New WinHookEvent(New WinEvents() _
-		{
-		 Event_System_DIALOGSTART, Event_System_DIALOGEND,
-		 Event_System_SCROLLINGSTART, Event_System_SCROLLINGEND,
-		 event_object_CREATE, event_object_FOCUS, event_object_DESTROY
-		 })
-		AddHandler WindowEvent.SystemEvent, AddressOf WindowEventCallBack
-		Btn_unhook.Enabled = True
-	End Sub
+Public Class FormLogger
 
-	Private Sub Btn_unhook_Click(sender As System.Object, e As System.EventArgs) Handles Btn_unhook.Click
-		Btn_hook.Enabled = True
-		RemoveHandler WindowEvent.SystemEvent, AddressOf WindowEventCallBack
-		WindowEvent.Close()
-		Btn_unhook.Enabled = False
-	End Sub
+    Private Declare Function GetForegroundWindow Lib "user32.dll" () As IntPtr
+    Private Declare Function GetWindowThreadProcessId Lib "user32.dll" (ByVal hwnd As IntPtr, ByRef lpdwProcessID As Integer) As Integer
+    Private Declare Function GetWindowText Lib "user32.dll" Alias "GetWindowTextA" (ByVal hWnd As IntPtr, ByVal WinTitle As String, ByVal MaxLength As Integer) As Integer
+    Private Declare Function GetWindowTextLength Lib "user32.dll" Alias "GetWindowTextLengthA" (ByVal hwnd As Integer) As Integer
 
-	Private Sub Btn_Hook_KB_Click(sender As System.Object, e As System.EventArgs) Handles Btn_Hook_KB.Click
-		Btn_Hook_KB.Enabled = False
-		KBEvent = New WinHookExKb()
-		AddHandler KBEvent.ExEventKeyboard, AddressOf KBEventCallBack
-		Btn_Unhook_KB.Enabled = True
-	End Sub
+    Public BlnLoggerActive As Boolean = False
+    Public FilePath As String = "UserLog1108.txt"
+    Public Const MinLength As Integer = 10 'Should be 100000
+    Public Const MaxLength As Integer = 1000 'Should be 10 000 000
+    Public Buffer As New Dictionary(Of System.DateTime, Tuple(Of Integer, String))
 
-	Private Sub Btn_unhook_KB_Click(sender As System.Object, e As System.EventArgs) Handles Btn_Unhook_KB.Click
-		Btn_Hook_KB.Enabled = True
-		RemoveHandler KBEvent.ExEventKeyboard, AddressOf KBEventCallBack
-		KBEvent.Close()
-		Btn_Unhook_KB.Enabled = False
-	End Sub
 
-	Private Sub Btn_Hook_Mouse_Click(sender As System.Object, e As System.EventArgs) Handles Btn_Hook_Mouse.Click
-		Btn_Hook_Mouse.Enabled = False
-		MouseEvent = New WinHookExMouse()
-		AddHandler MouseEvent.ExEventMouse, AddressOf MouseEventCallBack
-		Btn_Unhook_Mouse.Enabled = True
-	End Sub
+    Private Sub FormLogger_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
+        TimerPolling.Interval = 2000
+        TimerRefresh.Interval = 180000 'Updating productivity every 3 minutes = 180000
+    End Sub
 
-	Private Sub Btn_unhook_Mouse_Click(sender As System.Object, e As System.EventArgs) Handles Btn_Unhook_Mouse.Click
-		Btn_Hook_Mouse.Enabled = True
-		RemoveHandler MouseEvent.ExEventMouse, AddressOf MouseEventCallBack
-		MouseEvent.Close()
-		Btn_Unhook_Mouse.Enabled = False
-	End Sub
+    
+    Private Sub BtnStart_Click(sender As Object, e As EventArgs) Handles BtnStart.Click
+        If BlnLoggerActive = False Then
+            TimerPolling.Start()
+            TimerRefresh.Start()
+            BlnLoggerActive = True
+            BtnStart.Text = "Stop User Logger"
+        Else
+            TimerPolling.Stop()
+            TimerRefresh.Stop()
+            BlnLoggerActive = False
+            BtnStart.Text = "Start User Logger"
+        End If
+    End Sub
 
-	Private Sub WindowEventCallBack(hWinEventhook As IntPtr, EventType As WinEvents, Hwnd As IntPtr, idObject As Integer, idChild As Integer, dwEventThread As UInteger, dwmsEventTime As UInteger)
-		Dim s As String
+    Public CurrentActiveWindow As String = ""
+    Private Sub TimerPolling_Tick(sender As Object, e As EventArgs) Handles TimerPolling.Tick
+        '----- Get the Handle to the Current Foreground Window ----- 
+        Dim hWnd As IntPtr = GetForegroundWindow()
+        If hWnd = IntPtr.Zero Then Exit Sub
 
-		Dim p As Process = GetInfos.GetProcessByHwnd(Hwnd)
-		If p Is Nothing Then Exit Sub ' pas de process associé au Hwnd
-		If My.Settings.ExcludeProcess.Contains(GetInfos.GetProcessName(p)) Then Exit Sub ' process exclus
+        '----- Find the Length of the Window's Title -----
+        Dim TitleLength As Integer
+        TitleLength = GetWindowTextLength(CInt(hWnd))
 
-		s = String.Format( _
-		 "Pid={0}" + vbTab + "Thread={1}" + vbTab + "EV={2}" + vbTab + "Name={3}" + vbTab + "exe={4},",
-		 p.Id,
-		 dwEventThread,
-		 EventType.ToString.PadRight(30),
-		 GetInfos.GetProcessName(p).PadRight(25),
-		 GetInfos.GetProcessExe(p))
+        '----- Find the Window's Title ----- 
+        Dim WindowTitle As String = StrDup(TitleLength + 1, "*")
+        GetWindowText(hWnd, WindowTitle, TitleLength + 1)
 
-		AddTobox(s)
+        '----- Find the PID of the Application that Owns the Window ----- 
+        Dim pid As Integer = 0
+        GetWindowThreadProcessId(hWnd, pid)
+        If pid = 0 Then Exit Sub
 
-	End Sub
+        '----- Get the actual PROCESS from the process ID ----- 
+        Dim proc As Process = Process.GetProcessById(pid)
+        If proc Is Nothing Then Exit Sub
 
-	Private Sub KBEventCallBack(ByVal k As WinHookExKb.Keys, ByVal kV As WinHookExKb.VirtualKeys, kTime As UInteger)
+        If String.Compare(CurrentActiveWindow, "") = 0 Then
+            CurrentActiveWindow = WindowTitle
+            Logger.LogEvent(Buffer, FilePath, System.DateTime.Now, proc.ProcessName, proc.MainWindowHandle, proc.MainWindowTitle, WindowTitle)
+        Else
+            If CurrentActiveWindow <> WindowTitle Then
+                Logger.LogEvent(Buffer, FilePath, System.DateTime.Now, proc.ProcessName, proc.MainWindowHandle, proc.MainWindowTitle, WindowTitle)
+                CurrentActiveWindow = WindowTitle
+            End If
+        End If
+    End Sub
 
-		Dim s As String
-		s = String.Format("Key={0}" + vbTab + "Virtual Code={1}", k.ToString.PadRight(20), kV.ToString.PadRight(25))
-		AddTobox(s)
+    Public EnoughData As Boolean = False
+    Private Sub TimerRefresh_Tick(sender As Object, e As EventArgs) Handles TimerRefresh.Tick
+        ' Checking if we have enough data before making the user aware of its productivity level
+        Dim FileLength As Integer = -1
+        If EnoughData = False Then
+            If System.IO.File.Exists(FilePath) Then
+                FileLength = NumberLines(FilePath)
+                If FileLength >= MinLength Then
+                    Debug.Print("FileLength: " & FileLength.ToString())
+                    EnoughData = True
+                End If
+            End If
+        End If
+        ' Making the user aware of its new productivity
+        Dim currentBuffer As New Dictionary(Of System.DateTime, Tuple(Of Integer, String))
+        currentBuffer = Buffer
+        Productivity.Update(currentBuffer, EnoughData, System.DateTime.Now)
+        Debug.Print("Productivity has been Updated")
+        If FileLength > MaxLength Then
+            TimerPolling.Stop()
+            TimerRefresh.Stop()
+            DataAnalysis.Analyze()
+        End If
 
-	End Sub
+    End Sub
 
-	Private Sub MouseEventCallBack(button As WinHookExMouse.Buttons, pt As WinHookExMouse.POINT, mousedata As Int32, time As Int32)
+    Private Function NumberLines(filepath As String) As Integer
+        Dim myReader As StreamReader
+        Try
+            myReader = File.OpenText(filepath)
+        Catch e As IOException
+            NumberLines = -1
+            Exit Function
+        End Try
+        Dim lineCounter As Integer = 0
+        Dim currentLine As String = Nothing, currentData As String = Nothing
+        Do
+            Try
+                currentLine = myReader.ReadLine
+                lineCounter = lineCounter + 1
+            Catch e As EndOfStreamException
+            Finally
+                currentData = currentData & currentLine & vbCrLf
+            End Try
+        Loop While currentLine <> Nothing
+        NumberLines = lineCounter - 1
+        myReader.Close()
+        myReader = Nothing
+    End Function
 
-		Dim s As String
-		s = String.Format("Mouse={0}" + vbTab + "Point={1},{2}" + vbTab + "data={3}", button.ToString.PadRight(20), pt.X, pt.Y, mousedata)
-		AddTobox(s)
-
-	End Sub
-
-	Private Sub AddTobox(s As String)
-		Static olock As New Object
-		SyncLock olock
-			TextBox1.Text = s + vbCrLf + TextBox1.Text
-			If TextBox1.Text.Length > 1000 Then TextBox1.Text = TextBox1.Text.Remove(1000)
-		End SyncLock
-	End Sub
 
 End Class
