@@ -17,25 +17,47 @@ Module Productivity
 
         AvgTimeWasted = TotalTimeWasted * 100 / TotalTime
         Debug.Print("Avg Time Wasted: " & AvgTimeWasted.ToString())
-        ' Store Current Productivity Into File for further analysis
-        Dim ProductivityFilePath As String = "ProductivityLog.txt"
+        ' Store Current Percentage of Time Wasted Into File for further analysis
+        Dim ProductivityFilePath As String = "TimeWasted.txt"
         If Not System.IO.File.Exists(ProductivityFilePath) Then
             System.IO.File.Create(ProductivityFilePath).Dispose()
         End If
 
         Using ObjWriter As New System.IO.StreamWriter(ProductivityFilePath, True)
-            ObjWriter.WriteLine(CurrentTs & "," & Math.Truncate(AvgTimeWasted))
+            ObjWriter.WriteLine(CurrentTs & "," & Math.Truncate(AvgTimeWasted) & "," & EnoughData.ToString())
         End Using
 
         ' Update Icon
         If EnoughData = True Then
-            UpdateIcon(AvgTimeWasted)
+            UpdateIcon(AvgTimeWasted) 'Can be replaced by update icon pie to replace color scale by pie graph
         End If
 
     End Sub
 
     Public Sub UpdateIcon(AvgTimeWasted As Double)
-        Debug.Print("Updating Icon")
+        Dim newIcon As System.Drawing.Icon
+        Dim AppData As String = System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData)
+
+        If AvgTimeWasted >= 75 Then
+            ' Color = Red
+            newIcon = New Icon(Path.Combine(AppData, "Icons/red_icon.ico"))
+        ElseIf AvgTimeWasted >= 50 And AvgTimeWasted < 75 Then
+            'Color = Orange
+            newIcon = New Icon(Path.Combine(AppData, "Icons/orange_icon.ico"))
+        ElseIf AvgTimeWasted >= 25 And AvgTimeWasted < 50 Then
+            'Color = Yellow
+            newIcon = New Icon(Path.Combine(AppData, "Icons/yellow_icon.ico"))
+        Else
+            'Color = Green
+            newIcon = New Icon(Path.Combine(AppData, "Icons/green_icon.ico"))
+        End If
+        FormLogger.Icon = newIcon
+    End Sub
+
+
+
+    Public Sub UpdateIconPie(AvgTimeWasted As Double)
+
         ' Draw Graphic
         FormLogger.Chart.Series("Prod").Points.Clear()
         FormLogger.Chart.Series("Prod").Points.AddXY("Waste", AvgTimeWasted)

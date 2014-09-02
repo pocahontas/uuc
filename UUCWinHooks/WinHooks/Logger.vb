@@ -1,16 +1,46 @@
 ﻿Module Logger
-    Dim PrevUsername As String = ""
-    Dim PrevTs As System.DateTime
-    Dim PrevProcessName As String
-    Dim PrevProgramName As String
-    Dim PrevServiceName As String
-    Dim PrevWindowName As String
-    Dim PrevFullName As String
-    Dim PrevCategory As String
-    Dim PrevTimeWaste As String
+    Dim PrevUsername As String = GetUserName()
+    Dim PrevTs As System.DateTime = System.DateTime.Now
+    Dim PrevProcessName As String = "START"
+    Dim PrevProgramName As String = "START"
+    Dim PrevServiceName As String = "START"
+    Dim PrevWindowName As String = "START"
+    Dim PrevFullName As String = "START"
+    Dim PrevCategory As String = "Other"
+    Dim PrevTimeWaste As String = "Undefined"
+    Dim PrevEnoughData As Boolean = False
+
+    Dim dictCategory As New Dictionary(Of String, List(Of String))
 
 
-    Public Sub LogEvent(Buffer As Dictionary(Of System.DateTime, Tuple(Of Integer, String)), FilePath As String, Ts As System.DateTime, ProcessName As String, WindowHandle As IntPtr, MainWindow As String, Window As String)
+
+    Public Sub LogEvent(Buffer As Dictionary(Of System.DateTime, Tuple(Of Integer, String)), FilePath As String, Ts As System.DateTime, ProcessName As String, WindowHandle As IntPtr, MainWindow As String, Window As String, EnoughData As Boolean)
+        Dim dictCategory As New Dictionary(Of String, List(Of String))
+
+        ' --- Creating keywords to categorize 
+        If dictCategory.Count() = 0 Then
+            dictCategory.Add("References", New List(Of String)({"wikipedia", "bing", "google", "yahoo"}))
+            dictCategory.Add("Social Networking", New List(Of String)({"facebook", "linkedin", "flickr", "pinterest", "foursquare", "instagram", "google plus", "google+", "twitter"}))
+            dictCategory.Add("Emailing", New List(Of String)({"gmail", "outlook", "hotmail", "webmail"}))
+            dictCategory.Add("Scheduling", New List(Of String)({"google agenda", "agenda", "google keep", "evernote", "timetable"}))
+            dictCategory.Add("Entertainment", New List(Of String)({"youtube", "netflix", "buzz", "streaming", "series", "film", "video", "dropbox", "deezer", "grooveshark", "9gag", "porn", "imdb", "the lad bible"}))
+            dictCategory.Add("Shopping", New List(Of String)({"deals", "shopping", "argos", "gumtree", "ebay", "paypal", "supermarket", "argos"}))
+            dictCategory.Add("Software Development", New List(Of String)({"php", "java", "c++", "c#", "programming", "html", "code", ".js", "javascript", "python", "vb", "software", "stack overflow"}))
+            dictCategory.Add("News", New List(Of String)({"reddit", "telegraph", "cnn", "bbc", "mail online", "news"}))
+            dictCategory.Add("Travel", New List(Of String)({"trip", "holiday", "hotel", "lastminute"}))
+            dictCategory.Add("Utilities", New List(Of String)({"bank", "banking"}))
+            dictCategory.Add("Office", New List(Of String)({"google docs", "google drive", "google sheets"}))
+        End If
+
+        Dim dictPair As KeyValuePair(Of String, List(Of String))
+        Dim keyword As String
+
+
+        ' --- If App is starting
+        If ProcessName = "Start" Then
+            PrevEnoughData = EnoughData
+        End If
+
         ' --- Calculate duration of previous event
         Dim duration As TimeSpan
         duration = Ts - PrevTs
@@ -21,7 +51,7 @@
         End If
         If PrevUsername <> "" Then
             Using ObjWriter As New System.IO.StreamWriter(FilePath, True)
-                ObjWriter.WriteLine(PrevUsername & "," & PrevTs & "," & Ts & "," & duration.Seconds & "," & PrevProcessName & "," & PrevProgramName & "," & PrevServiceName & "," & PrevFullName & "," & PrevCategory & "," & PrevTimeWaste)
+                ObjWriter.WriteLine(PrevUsername & "," & PrevTs & "," & Ts & "," & duration.Seconds.ToString & "," & PrevProcessName & "," & PrevProgramName & "," & PrevServiceName & "," & PrevFullName & "," & PrevCategory & "," & PrevTimeWaste & "," & PrevEnoughData.ToString())
             End Using
         End If
 
@@ -162,29 +192,13 @@
                 'FullName = GetCurrentUrl(WindowHandle, "Windows Internet Explorer", "Edit", Nothing)
 
                 Window = Window.ToLower()
-                If Window.Contains("facebook") Or Window.Contains("twitter") Or Window.Contains("flickr") Or Window.Contains("linkedIn") Or Window.Contains("pinterest") Or Window.Contains("instagram") Then
-                    Category = "Social Networking"
-                ElseIf Window.Contains("gmail") Or Window.Contains("outlook") Or Window.Contains("webmail") Then
-                    Category = "Emailing"
-                ElseIf Window.Contains("google agenda") Or Window.Contains("google keep") Then
-                    Category = "Scheduling"
-                ElseIf Window.Contains("youtube") Or Window.Contains("netflix") Or Window.Contains("buzz") Or Window.Contains("9gag") Or Window.Contains("video") Or Window.Contains("imdb") Or Window.Contains("entertainment") Or Window.Contains("streaming") Or Window.Contains("series") Or Window.Contains("film") Or Window.Contains("porn") Or Window.Contains("the lad bible") Then
-                    Category = "Entertainment"
-                ElseIf Window.Contains("amazon") Or Window.Contains("supermarket") Or Window.Contains("deals") Or Window.Contains("shopping") Or Window.Contains("argos") Or Window.Contains("gumtree") Or Window.Contains("ebay") Or Window.Contains("paypal") Then
-                    Category = "Shopping"
-                ElseIf Window.Contains("reddit") Or Window.Contains("telegraph") Or Window.Contains("cnn") Or Window.Contains("bbc") Or Window.Contains("mail online") Or Window.Contains("news") Then
-                    Category = "News"
-                ElseIf Window.Contains("stack overflow") Or Window.Contains("software") Or Window.Contains("vb") Or Window.Contains("python") Or Window.Contains("java") Or Window.Contains("php") Or Window.Contains("c++") Or Window.Contains("c#") Or Window.Contains("html") Or Window.Contains("javascript") Or Window.Contains("programming") Or Window.Contains("code") Then
-                    Category = "Software Development"
-                ElseIf Window.Contains("google docs") Or Window.Contains("google drive") Or Window.Contains("google sheets") Then
-                    Category = "Office"
-                ElseIf Window.Contains("bing") Or Window.Contains("live") Or Window.Contains("google") Or Window.Contains("wikipedia") Then
-                    Category = "References"
-                ElseIf Window.Contains("bank") Or Window.Contains("banking") Then
-                    Category = "Utilities"
-                ElseIf Window.Contains("holiday") Or Window.Contains("hotel") Or Window.Contains("lastminute") Then
-                    Category = "Travel"
-                End If
+                For Each dictPair In dictCategory
+                    For Each keyword In dictPair.Value
+                        If Window.Contains(keyword) Then
+                            Category = dictPair.Key
+                        End If
+                    Next
+                Next
 
                 ' --- Dev ---
             Case "devenv", "eclipse", "netbeans", "pycharm"
@@ -340,6 +354,7 @@
         End If
         PrevCategory = Category
         PrevTimeWaste = TimeWaste
+        PrevEnoughData = EnoughData
 
 
     End Sub

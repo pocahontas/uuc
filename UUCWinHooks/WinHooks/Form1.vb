@@ -6,6 +6,8 @@ Imports System.Data.OleDb
 Imports System.IO
 
 
+
+
 Public Class FormLogger
 
     Private Declare Function GetForegroundWindow Lib "user32.dll" () As IntPtr
@@ -14,31 +16,26 @@ Public Class FormLogger
     Private Declare Function GetWindowTextLength Lib "user32.dll" Alias "GetWindowTextLengthA" (ByVal hwnd As Integer) As Integer
 
     Public BlnLoggerActive As Boolean = False
-    Public FilePath As String = "UserLog1108.txt"
-    Public Const MinLength As Integer = 10 'Should be 100000
-    Public Const MaxLength As Integer = 1000 'Should be 10 000 000
+
+    Public LogFilePath As String = "UserLog.txt"
+    Public TimeWastedFilePath As String = "TimeWasted.txt"
+    Public ReportFilePath As String = "Report_UserProductivity.txt"
+
+    Public Const MinLength As Integer = 100
+    Public Const MaxLength As Integer = 200
     Public Buffer As New Dictionary(Of System.DateTime, Tuple(Of Integer, String))
+    Public EnoughData As Boolean = False 'Indicates if the graphical interface has been started or not
 
 
     Private Sub FormLogger_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
         TimerPolling.Interval = 2000
         TimerRefresh.Interval = 180000 'Updating productivity every 3 minutes = 180000
+        Logger.LogEvent(Buffer, LogFilePath, System.DateTime.Now, "Start", Nothing, "", "", Nothing)
+        TimerPolling.Start()
+        TimerRefresh.Start()
+        TextBoxStatus.Text = "Recording Initial Data"
     End Sub
 
-    
-    Private Sub BtnStart_Click(sender As Object, e As EventArgs) Handles BtnStart.Click
-        If BlnLoggerActive = False Then
-            TimerPolling.Start()
-            TimerRefresh.Start()
-            BlnLoggerActive = True
-            BtnStart.Text = "Stop User Logger"
-        Else
-            TimerPolling.Stop()
-            TimerRefresh.Stop()
-            BlnLoggerActive = False
-            BtnStart.Text = "Start User Logger"
-        End If
-    End Sub
 
     Public CurrentActiveWindow As String = ""
     Private Sub TimerPolling_Tick(sender As Object, e As EventArgs) Handles TimerPolling.Tick
@@ -65,25 +62,25 @@ Public Class FormLogger
 
         If String.Compare(CurrentActiveWindow, "") = 0 Then
             CurrentActiveWindow = WindowTitle
-            Logger.LogEvent(Buffer, FilePath, System.DateTime.Now, proc.ProcessName, proc.MainWindowHandle, proc.MainWindowTitle, WindowTitle)
+            Logger.LogEvent(Buffer, LogFilePath, System.DateTime.Now, proc.ProcessName, proc.MainWindowHandle, proc.MainWindowTitle, WindowTitle, EnoughData)
         Else
             If CurrentActiveWindow <> WindowTitle Then
-                Logger.LogEvent(Buffer, FilePath, System.DateTime.Now, proc.ProcessName, proc.MainWindowHandle, proc.MainWindowTitle, WindowTitle)
+                Logger.LogEvent(Buffer, LogFilePath, System.DateTime.Now, proc.ProcessName, proc.MainWindowHandle, proc.MainWindowTitle, WindowTitle, EnoughData)
                 CurrentActiveWindow = WindowTitle
             End If
         End If
     End Sub
 
-    Public EnoughData As Boolean = False
+
     Private Sub TimerRefresh_Tick(sender As Object, e As EventArgs) Handles TimerRefresh.Tick
         ' Checking if we have enough data before making the user aware of its productivity level
         Dim FileLength As Integer = -1
         If EnoughData = False Then
-            If System.IO.File.Exists(FilePath) Then
-                FileLength = NumberLines(FilePath)
+            If System.IO.File.Exists(LogFilePath) Then
+                FileLength = NumberLines(LogFilePath)
                 If FileLength >= MinLength Then
-                    Debug.Print("FileLength: " & FileLength.ToString())
                     EnoughData = True
+                    TextBoxStatus.Text = "Experimenting"
                 End If
             End If
         End If
@@ -95,8 +92,10 @@ Public Class FormLogger
         If FileLength > MaxLength Then
             TimerPolling.Stop()
             TimerRefresh.Stop()
-            DataAnalysis.Analyze()
+            TextBoxStatus.Text = "Analyzing Data"
+            DataAnalysis.Analyze(LogFilePath, TimeWastedFilePath, ReportFilePath)
         End If
+        TextBoxStatus.Text = "Report Generated"
 
     End Sub
 
@@ -124,5 +123,13 @@ Public Class FormLogger
         myReader = Nothing
     End Function
 
+
+    Private Sub ButtonViewReport_Click(sender As Object, e As EventArgs) Handles ButtonViewReport.Click
+        If File.Exists(ReportFilePath) Then
+            Process.Start(ReportFilePath)
+        Else
+            MsgBox("The report has not been generated yet. Please wait until the status becomes 'Report Generated'. Thanks!")
+        End If
+    End Sub
 
 End Class
