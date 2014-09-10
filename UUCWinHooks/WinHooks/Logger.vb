@@ -27,7 +27,7 @@
             dictCategory.Add("Shopping", New List(Of String)({"deals", "shopping", "argos", "gumtree", "ebay", "paypal", "supermarket", "argos"}))
             dictCategory.Add("Software Development", New List(Of String)({"php", "java", "c++", "c#", "programming", "html", "code", ".js", "javascript", "python", "vb", "software", "stack overflow"}))
             dictCategory.Add("News", New List(Of String)({"reddit", "telegraph", "cnn", "bbc", "mail online", "news"}))
-            dictCategory.Add("Travel", New List(Of String)({"trip", "holiday", "hotel", "lastminute"}))
+            dictCategory.Add("Travel", New List(Of String)({"trip", "travel", "holiday", "hotel", "lastminute"}))
             dictCategory.Add("Utilities", New List(Of String)({"bank", "banking"}))
             dictCategory.Add("Office", New List(Of String)({"google docs", "google drive", "google sheets"}))
         End If
@@ -72,7 +72,10 @@
         Next
         ' Adding new event
         Dim tuple As Tuple(Of Integer, String) = New Tuple(Of Integer, String)(duration.Seconds, PrevTimeWaste)
-        Buffer.Add(PrevTs, tuple)
+        If Not Buffer.ContainsKey(PrevTs) Then
+            Buffer.Add(PrevTs, tuple)
+        End If
+
 
         ' --- Analyse new event
         Dim Username As String = Tools.GetUserName()
@@ -98,10 +101,9 @@
                 ServiceName = "Compression"
                 FullName = "7zip"
                 Category = "Utilities"
-            Case "notepad", "notepad++"
-                ProgramName = "NotePad"
+            Case "notepad", "notepad++", "notes2", "nlnotes"
+                ProgramName = "Notes"
                 ServiceName = "Word Processing"
-                FullName = Window.Substring(0, InStr(Window, "-") - 2)
                 Category = "Utilities"
             Case "jgs"
                 ProgramName = "Java Platform"
@@ -128,22 +130,18 @@
             Case "WINWORD"
                 ProgramName = "Word"
                 ServiceName = "Word Processing"
-                FullName = Window.Substring(0, InStr(Window, "-") - 2)
                 Category = "Office"
             Case "EXCEL"
                 ProgramName = "Excel"
                 ServiceName = "Spreadsheet"
-                FullName = Window.Substring(0, InStr(Window, "-") - 2)
                 Category = "Office"
             Case "POWERPNT"
                 ProgramName = "PowerPoint"
                 ServiceName = "Presentation"
-                FullName = Window.Substring(0, InStr(Window, "-") - 2)
                 Category = "Office"
             Case "MSPUB"
                 ProgramName = "Publisher"
                 ServiceName = "Presentation"
-                FullName = Window.Substring(0, InStr(Window, "-") - 2)
                 Category = "Office"
 
 
@@ -151,7 +149,6 @@
             Case "OUTLOOK"
                 ProgramName = "Outlook"
                 ServiceName = "Emailing"
-                FullName = Window.Substring(0, InStr(Window, "-") - 2)
                 Category = "Emailing"
             Case "Thunderbird"
                 ProgramName = "Thunderbird"
@@ -204,7 +201,6 @@
             Case "devenv", "eclipse", "netbeans", "pycharm"
                 If Window.Contains("Visual Studio") Then
                     ProgramName = "Visual Studio"
-                    FullName = Window.Substring(0, InStr(Window, "-") - 2)
                 ElseIf ProcessName = "netbeans" Then
                     ProgramName = "Netbeans"
                 ElseIf ProcessName = "pycharm" Then
@@ -217,7 +213,6 @@
             Case "GitHub"
                 ProgramName = "GitHub"
                 ServiceName = "VCS"
-                FullName = Window.Substring(0, InStr(Window, "-") - 2)
                 Category = "Software Development"
             Case "MATLAB"
                 ProgramName = ProcessName
@@ -244,7 +239,6 @@
             Case "mspaint"
                 ProgramName = "Paint"
                 ServiceName = "Drawing"
-                FullName = Window.Substring(0, InStr(Window, "-") - 2)
                 Category = "Design"
             Case "Photoshop", "PhotoshopElements", "PhotoshopElementsFileAgent", "PhotoshopElementsOrganizer"
                 ProgramName = "Adobe Photoshop"

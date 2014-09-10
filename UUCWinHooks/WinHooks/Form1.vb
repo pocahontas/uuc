@@ -5,9 +5,6 @@ Imports System.Data
 Imports System.Data.OleDb
 Imports System.IO
 
-
-
-
 Public Class FormLogger
 
     Private Declare Function GetForegroundWindow Lib "user32.dll" () As IntPtr
@@ -16,24 +13,26 @@ Public Class FormLogger
     Private Declare Function GetWindowTextLength Lib "user32.dll" Alias "GetWindowTextLengthA" (ByVal hwnd As Integer) As Integer
 
     Public BlnLoggerActive As Boolean = False
+    Dim desktopFolder As String = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)
 
-    Public LogFilePath As String = "UserLog.txt"
-    Public TimeWastedFilePath As String = "TimeWasted.txt"
-    Public ReportFilePath As String = "Report_UserProductivity.txt"
+    Public LogFilePath As String = Path.Combine(desktopFolder, "UserLog.txt")
+    Public TimeWastedFilePath As String = Path.Combine(desktopFolder, "TimeWasted.txt")
+    Public ReportFilePath As String = Path.Combine(desktopFolder, "Report_UserProductivity.txt")
 
-    Public Const MinLength As Integer = 100
-    Public Const MaxLength As Integer = 200
+    Public Const MinLength As Integer = 200
+    Public Const MaxLength As Integer = 600
     Public Buffer As New Dictionary(Of System.DateTime, Tuple(Of Integer, String))
     Public EnoughData As Boolean = False 'Indicates if the graphical interface has been started or not
 
 
     Private Sub FormLogger_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
-        TimerPolling.Interval = 2000
-        TimerRefresh.Interval = 180000 'Updating productivity every 3 minutes = 180000
+        TimerPolling.Interval = 3000
+        TimerRefresh.Interval = 300000 'Updating productivity every 5 minutes
         Logger.LogEvent(Buffer, LogFilePath, System.DateTime.Now, "Start", Nothing, "", "", Nothing)
         TimerPolling.Start()
         TimerRefresh.Start()
         TextBoxStatus.Text = "Recording Initial Data"
+        Me.NotifyIcon1.Icon = Me.Icon
     End Sub
 
 
@@ -75,27 +74,30 @@ Public Class FormLogger
     Private Sub TimerRefresh_Tick(sender As Object, e As EventArgs) Handles TimerRefresh.Tick
         ' Checking if we have enough data before making the user aware of its productivity level
         Dim FileLength As Integer = -1
-        If EnoughData = False Then
-            If System.IO.File.Exists(LogFilePath) Then
-                FileLength = NumberLines(LogFilePath)
-                If FileLength >= MinLength Then
-                    EnoughData = True
-                    TextBoxStatus.Text = "Experimenting"
-                End If
+
+        If System.IO.File.Exists(LogFilePath) Then
+            FileLength = NumberLines(LogFilePath)
+            Debug.Print("Filelength: " & FileLength)
+            If EnoughData = False And FileLength >= MinLength Then
+
+                EnoughData = True
+                TextBoxStatus.Text = "Experimenting"
             End If
         End If
         ' Making the user aware of its new productivity
         Dim currentBuffer As New Dictionary(Of System.DateTime, Tuple(Of Integer, String))
         currentBuffer = Buffer
-        Productivity.Update(currentBuffer, EnoughData, System.DateTime.Now)
+        Productivity.Update(currentBuffer, EnoughData, System.DateTime.Now, TimeWastedFilePath)
         Debug.Print("Productivity has been Updated")
         If FileLength > MaxLength Then
+            Debug.Print("Starting Data Analysis")
             TimerPolling.Stop()
             TimerRefresh.Stop()
             TextBoxStatus.Text = "Analyzing Data"
             DataAnalysis.Analyze(LogFilePath, TimeWastedFilePath, ReportFilePath)
+            TextBoxStatus.Text = "Report Generated"
         End If
-        TextBoxStatus.Text = "Report Generated"
+
 
     End Sub
 
@@ -131,5 +133,11 @@ Public Class FormLogger
             MsgBox("The report has not been generated yet. Please wait until the status becomes 'Report Generated'. Thanks!")
         End If
     End Sub
+
+    Private Sub LinkLabel1_LinkClicked(sender As Object, e As LinkLabelLinkClickedEventArgs) Handles LinkLabel1.LinkClicked
+        System.Diagnostics.Process.Start("http://goo.gl/XE72Fn")
+    End Sub
+
+
 
 End Class

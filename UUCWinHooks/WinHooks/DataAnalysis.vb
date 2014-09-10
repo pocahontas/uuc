@@ -3,12 +3,12 @@
 Module DataAnalysis
     Sub Analyze(FilePath As String, TimeWastedFile As String, ReportName As String)
         ' --- Create New Text File for Reporting
+        MsgBox("Data Analysis")
         Dim file As System.IO.StreamWriter = My.Computer.FileSystem.OpenTextFileWriter(ReportName, False)
         file.WriteLine("User Productivity Report")
         file.Close()
         AnalyzeTimeWasted(TimeWastedFile, ReportName)
         AnalyzeCat(FilePath, ReportName)
-        CleanComputer(FilePath, TimeWastedFile)
 
 
     End Sub
@@ -41,11 +41,10 @@ Module DataAnalysis
                 Dim StringTs As String = parts(0)
 
                 Dim Ts As System.DateTime = New DateTime()
+                Ts = Convert.ToDateTime(StringTs)
                 If i = 1 Then
                     StartTs = Ts
                 End If
-                Dim enUs As New System.Globalization.CultureInfo("en-US")
-                Ts = Convert.ToDateTime(StringTs)
 
                 Dim TimeWasted As Double = Convert.ToDouble(parts(1))
                 Dim EnoughData As String = parts(2)
@@ -54,22 +53,22 @@ Module DataAnalysis
                     sumValuesBefore += TimeWasted
                     sumSquareValuesBefore += TimeWasted * TimeWasted
                     nbElemsBefore += 1
-                    If prev < 25 And TimeWasted < 25 Then
-                        wasteBefore += 3
+                    If prev > 50 And TimeWasted > 50 Then
+                        wasteBefore += 5
                         If wasteBefore >= longestWasteBefore Then
                             longestWasteBefore = wasteBefore
                         End If
-                    ElseIf prev > 75 And TimeWasted > 75 Then
-                        focusBefore += 3
+                    ElseIf prev < 20 And TimeWasted < 20 Then
+                        focusBefore += 5
                         If focusBefore >= longestFocusBefore Then
                             longestFocusBefore = focusBefore
                         End If
                     End If
 
-                    If TimeWasted < 25 Then
-                        percentageOfProductiveTimeBefore += 3
+                    If TimeWasted < 20 Then
+                        percentageOfProductiveTimeBefore += 5
                     End If
-                    totalTimeBefore += 3
+                    totalTimeBefore += 5
 
 
                 End If
@@ -77,22 +76,22 @@ Module DataAnalysis
                     sumValuesAfter += TimeWasted
                     sumSquareValuesAfter += TimeWasted * TimeWasted
                     nbElemsAfter += 1
-                    If prev < 25 And TimeWasted < 25 Then
-                        wasteAfter += 3
+                    If prev > 50 And TimeWasted > 50 Then
+                        wasteAfter += 5
                         If wasteAfter >= longestWasteAfter Then
                             longestWasteAfter = wasteAfter
                         End If
-                    ElseIf prev > 75 And TimeWasted > 75 Then
-                        focusAfter += 3
+                    ElseIf prev < 20 And TimeWasted < 20 Then
+                        focusAfter += 5
                         If focusAfter >= longestFocusAfter Then
                             longestFocusAfter = focusAfter
                         End If
                     End If
 
-                    If TimeWasted < 25 Then
-                        percentageOfProductiveTimeAfter += 3
+                    If TimeWasted < 20 Then
+                        percentageOfProductiveTimeAfter += 5
                     End If
-                    totalTimeAfter += 3
+                    totalTimeAfter += 5
                 End If
                 prev = TimeWasted
                 EndTs = Ts
@@ -198,16 +197,6 @@ Module DataAnalysis
         file.Close()
     End Sub
 
-    Sub CleanComputer(FilePath As String, TimeWastedFile As String)
-        ' Delete log file and productivity file to clean the computer
-        If System.IO.File.Exists(FilePath) = True Then
-            System.IO.File.Delete(FilePath)
-        End If
 
-        If System.IO.File.Exists(TimeWastedFile) = True Then
-            System.IO.File.Delete(TimeWastedFile
-        End If
-
-    End Sub
 
 End Module

@@ -1,6 +1,6 @@
 ﻿Imports System.IO
 Module Productivity
-    Public Sub Update(CurrentBuffer As Dictionary(Of System.DateTime, Tuple(Of Integer, String)), EnoughData As Boolean, CurrentTs As System.DateTime)
+    Public Sub Update(CurrentBuffer As Dictionary(Of System.DateTime, Tuple(Of Integer, String)), EnoughData As Boolean, CurrentTs As System.DateTime, ProductivityFilePath As String)
         Dim pair As KeyValuePair(Of System.DateTime, Tuple(Of Integer, String))
         Dim TotalTime As Integer = 0
         Dim TotalTimeWasted As Integer = 0
@@ -18,7 +18,6 @@ Module Productivity
         AvgTimeWasted = TotalTimeWasted * 100 / TotalTime
         Debug.Print("Avg Time Wasted: " & AvgTimeWasted.ToString())
         ' Store Current Percentage of Time Wasted Into File for further analysis
-        Dim ProductivityFilePath As String = "TimeWasted.txt"
         If Not System.IO.File.Exists(ProductivityFilePath) Then
             System.IO.File.Create(ProductivityFilePath).Dispose()
         End If
@@ -35,26 +34,11 @@ Module Productivity
     End Sub
 
     Public Sub UpdateIcon(AvgTimeWasted As Double)
-        Dim newIcon As System.Drawing.Icon
-        Dim AppData As String = System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData)
-
-        If AvgTimeWasted >= 75 Then
-            ' Color = Red
-            newIcon = New Icon(Path.Combine(AppData, "Icons/red_icon.ico"))
-        ElseIf AvgTimeWasted >= 50 And AvgTimeWasted < 75 Then
-            'Color = Orange
-            newIcon = New Icon(Path.Combine(AppData, "Icons/orange_icon.ico"))
-        ElseIf AvgTimeWasted >= 25 And AvgTimeWasted < 50 Then
-            'Color = Yellow
-            newIcon = New Icon(Path.Combine(AppData, "Icons/yellow_icon.ico"))
-        Else
-            'Color = Green
-            newIcon = New Icon(Path.Combine(AppData, "Icons/green_icon.ico"))
-        End If
-        FormLogger.Icon = newIcon
+        FormLogger.NotifyIcon1.BalloonTipIcon = ToolTipIcon.Info
+        FormLogger.NotifyIcon1.BalloonTipTitle = "Productivity Tracker Alert"
+        FormLogger.NotifyIcon1.BalloonTipText = "You are currently wasting " & Math.Truncate(AvgTimeWasted).ToString & "% of your time."
+        FormLogger.NotifyIcon1.ShowBalloonTip(30000)
     End Sub
-
-
 
     Public Sub UpdateIconPie(AvgTimeWasted As Double)
 
